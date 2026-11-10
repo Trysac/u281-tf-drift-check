@@ -7,12 +7,35 @@ go test -cover .          # tests with coverage summary
 go run ./scripts/check    # every gate, as CI and the factory run it
 ```
 
+## What the tests cover
+
+Tests live in package `tfdriftcheck_test` next to the code they exercise and use the public API
+only. The behaviours asserted come from the specification's acceptance list:
+
+- `Parse`: `input_too_large` for an input above the byte limit (52428801 bytes), `invalid_json`
+  for `{`, `unsupported_format` for `format_version` `"2.0"`, and `too_deep` for values nested
+deeper than 64. A plan without `resource_drift` yields no drifts and `Run` returns 0.
+- `Detect` kinds: `change.actions` `["update"]` gives `modified`; `["delete"]` with `after`
+  null gives `deleted` with empty `Paths`.
+- `Detect` paths: added key (`a` before, `a` and `b` after gives `["b"]`), array element
+  change (`x[1]`), array growth (`x[1]`), a map key containing a dot (`tags["a.b"]`), a key with
+  a space, unicode keys, null versus missing key, and empty object versus missing key.
+- Number comparison: `1` and `1.0` are equal; `9007199254740993` and `9007199254740992` differ.
+- `Options{Ignore: []string{"aws_instance.*:tags.Env"}}` removes that path; a drift left with
+  no paths is dropped and `Report.Ignored == 1`.
+- `Render`: `text` writes exactly
+  `"aws_instance.web modified: tags.Env\n1 resource drifted\n"` and never the marker string
+  present in before/after; `json` writes `{"drifts":[...],"ignored":0}`.
+- `Run`: returns 1 when drift is found, 0 when none, 2 for a missing file or unknown flag;
+  `--ignore` may be repeated.
+- Ordering: 100 drifted resources come out sorted by address.
+
 ## Policy
 
 - Statement coverage of the library (every package except `scripts/`) must stay at or above 80 %;
   the gate fails below it.
-- Tests live in package `tfdriftcheck_test` and exercise the public API only. They assert every
-  observable effect: return values, returned errors (`errors.Is`) and their messages.
+- Tests assert every observable effect: return values, returned errors (`errors.Is`) and their
+  messages.
 - Prefer table-driven tests with `t.Run` subtests; document usage with runnable `Example`
   functions, which `go test` verifies through their `// Output:` comments.
 - The race detector runs whenever cgo and a C compiler are available (always in Linux CI); the

@@ -1,5 +1,11 @@
-// Package tfdriftcheck is a small, dependency-free Go library: Detect Terraform drift from the resource_drift section of plan JSON: attribute paths that changed outside Terraform, deletions, ignore rules, values never printed
+// Package tfdriftcheck detects Terraform infrastructure drift from the
+// `resource_drift` section of a `terraform show -json` plan output.
 //
-// The public API is every exported identifier of this root package. Functions are pure: they do
-// no I/O, keep no global mutable state and report invalid input through returned errors.
+// It parses the plan JSON, computes attribute-level differences between the
+// before and after state of each drifted resource, applies ignore rules for
+// noisy attributes, and renders a concise report that never includes the
+// values themselves. This makes drift output safe to share in tickets and
+// CI logs.
+//
+// The primary entry points are [Parse], [Detect], and [Render].
 package tfdriftcheck
